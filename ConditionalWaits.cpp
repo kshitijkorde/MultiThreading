@@ -16,36 +16,44 @@ void * decrement_count(void * arg)
 {
 	pid_t id = syscall(__NR_gettid);
 	cout << "Thread ID: " << id << " Function: decrement_count, Count:" << cnt << endl;
-    pthread_mutex_lock(&CountLock);
-    while (cnt == 0)
-        pthread_cond_wait(&Cond_CountNonZero, &CountLock);
+
+	pthread_mutex_lock(&CountLock);
+
+	while (cnt == 0)
+		pthread_cond_wait(&Cond_CountNonZero, &CountLock);
+
 	cout << "Thread ID: " << id << " Count [" << cnt << "]" << " Decrementing --" << endl;
 	sleep(2);
-    cnt = cnt - 1;
+	cnt = cnt - 1;
 	/* If increment_count thread does not issue a broadcast signal then will have to issue the below
-       signal to wake up the other decrement thread */
-    //pthread_cond_signal(&Cond_CountNonZero);  // Signal broadcast is sent to all the waiting threads
-    pthread_mutex_unlock(&CountLock);
+       	signal to wake up the other decrement thread */
+	//pthread_cond_signal(&Cond_CountNonZero);  // Signal broadcast is sent to all the waiting threads
+
+	pthread_mutex_unlock(&CountLock);
 }
 
 void * increment_count(void * arg)
 {
 	pid_t id = syscall(__NR_gettid);
 	cout << "Thread ID: " << id << " Function: increment_count, Count:" << cnt << endl;
-    pthread_mutex_lock(&CountLock);
-    if(cnt == 0){
-        pthread_cond_broadcast(&Cond_CountNonZero);  // Signal broadcast is sent to all the waiting threads
-        //pthread_cond_signal(&Cond_CountNonZero);   // If no broadcast is sent, then the 1'st woken up thread 
-                                                     // will have to wake up the remaining thread
+
+	pthread_mutex_lock(&CountLock);
+
+	if(cnt == 0){
+
+		pthread_cond_broadcast(&Cond_CountNonZero);  // Signal broadcast is sent to all the waiting threads
+		//pthread_cond_signal(&Cond_CountNonZero);   // If no broadcast is sent, then the 1'st woken up thread will have to wake up the remaining thread
 		cout << "Thread ID: " << id << " Incrementing ++" << endl;
 		sleep(2);
-    	cnt = cnt + 2;
+		cnt = cnt + 2;
 	}
+
     pthread_mutex_unlock(&CountLock);
 }
 
 int main(){
 
+	cout << "Count: " << cnt << endl;
 	pthread_t IncThread, DecThread1, DecThread2;
 
 	pthread_create(&DecThread1, NULL, decrement_count, NULL);
@@ -71,7 +79,23 @@ int main(){
 	} else {
 		cout << "Thread 2 decrement joined" << endl;
 	}
-	cout << cnt << endl;
+	cout << "Count: " << cnt << endl;
 
 	return 0;
 }
+
+/*
+kshi@ThinkPad:~/MultiThreading$ g++ ConditionalWaits.cpp -lpthread
+kshi@ThinkPad:~/MultiThreading$ ./a.out 
+Count: 0
+Thread ID: 3470 Function: decrement_count, Count:0
+Thread ID: 3471 Function: decrement_count, Count:0
+Thread ID: 3472 Function: increment_count, Count:0
+Thread ID: 3472 Incrementing ++
+Thread ID: 3471 Count [2] Decrementing --
+Thread increment joined
+Thread ID: 3470 Count [1] Decrementing --
+Thread 1 decrement joined
+Thread 2 decrement joined
+Count: 0
+*/
